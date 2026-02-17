@@ -162,6 +162,23 @@ def report(file: str) -> None:
     render_report_from_file(Path(file), console)
 
 
+@cli.command("export")
+@click.argument("file", type=click.Path(exists=True))
+@click.option(
+    "--output", "-o", default=None, type=click.Path(),
+    help="Output directory for CSV files. Defaults to same directory as the report.",
+)
+def export(file: str, output: str | None) -> None:
+    """Export a JSON report to CSV files for spreadsheets."""
+    from pinpoint_eda.export import export_csv
+
+    report_path = Path(file)
+    output_dir = Path(output) if output else report_path.parent
+    console.print(f"[bold]Exporting[/] {report_path.name} to CSV...")
+    export_csv(report_path, output_dir, console)
+    console.print(f"\n[bold green]CSV export complete.[/] Files in: {output_dir}")
+
+
 def _run_scan(config: ScanConfig) -> None:
     """Execute the scan with the given config."""
     from pinpoint_eda._orchestrator import Orchestrator

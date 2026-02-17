@@ -221,6 +221,47 @@ def _render_console_summary(
         border_style=overall_color,
     ))
 
+    # Scoring guide
+    console.print()
+    guide = Table(
+        title="Scoring Guide",
+        show_header=True, show_lines=False,
+        title_style="bold",
+    )
+    guide.add_column("Resource", style="cyan")
+    guide.add_column("Points", justify="right")
+    guide.add_column("How It's Calculated", style="dim")
+
+    guide.add_row(
+        "Journeys", "varies",
+        "State (active=5, done=3, draft=1) + activities + 2/branch + 3/integration",
+    )
+    guide.add_row("Campaigns", "3/active, 1/other", "Active campaigns need careful cutover")
+    guide.add_row("Segments", "1 + 3/dyn + 2/imp", "Dynamic segments must be re-implemented")
+    guide.add_row("Active Channels", "2 each", "Per enabled channel type (Email, SMS, etc.)")
+    guide.add_row(
+        "Push + Campaigns", "+5",
+        "Push channels with active campaigns (no Connect equivalent)",
+    )
+    guide.add_row("Event Stream", "3-5", "5 if app has recent activity, 3 otherwise")
+    guide.add_row("Campaign Hook", "5", "Lambda integration needs re-wiring")
+    guide.add_row("Import Jobs", "2", "External data pipeline may need redirecting")
+    guide.add_row("Templates", "1 each, in-app=8", "In-app templates have no AWS equivalent")
+    guide.add_row("Recommenders", "5 each", "Custom ML integrations")
+    guide.add_row("SMS/Voice V2", "2/phone, 2/pool, 3/reg", "Phone numbers, pools, registrations")
+
+    guide.add_section()
+    guide.add_row("[green]LOW[/]", "0-9", "Minimal migration effort")
+    guide.add_row("[yellow]MEDIUM[/]", "10-29", "Moderate effort, plan 2-4 weeks")
+    guide.add_row("[red]HIGH[/]", "30-69", "Significant effort, plan 1-2 months")
+    guide.add_row("[bold red]VERY HIGH[/]", "70+", "Major undertaking, plan 2+ months")
+
+    console.print(guide)
+    console.print(
+        "\n[dim]Scores are heuristic estimates to help prioritize migration planning. "
+        "Actual effort depends on your team's familiarity with target services.[/]"
+    )
+
     # Account-level resources table
     if complexity.account_assessments:
         console.print()

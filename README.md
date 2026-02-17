@@ -46,6 +46,7 @@ pinpoint-eda scan --profile my-profile --dry-run
 | `pinpoint-eda` | Interactive configurator wizard |
 | `pinpoint-eda scan` | Run a migration assessment scan |
 | `pinpoint-eda report <file>` | Re-render a JSON report |
+| `pinpoint-eda export <file>` | Export JSON report to CSV files |
 | `pinpoint-eda list-scanners` | Show available scanners |
 
 ## Scan Options
@@ -112,8 +113,23 @@ Account-level:
 
 ## Output
 
-- `pinpoint-eda-output/pinpoint-eda-report.json` - full report
-- Rich console summary with complexity badges, tables, and migration tree
+- `pinpoint-eda-output/pinpoint-eda-report.json` - full JSON report
+- Rich console summary with complexity badges, scoring guide, tables, and migration tree
+
+### CSV Export
+
+```bash
+# Export to CSV files (same directory as report)
+pinpoint-eda export ./pinpoint-eda-output/pinpoint-eda-report.json
+
+# Export to a specific directory
+pinpoint-eda export ./pinpoint-eda-output/pinpoint-eda-report.json -o ./csv-reports
+```
+
+Produces three CSV files:
+- **applications.csv** -- one row per app with complexity scores, levels, and migration notes
+- **inventory.csv** -- one row per app+scanner with resource counts and flattened metadata
+- **account_resources.csv** -- account-level resources (templates, recommenders, SMS/Voice V2) per region
 
 ## IAM Permissions
 
