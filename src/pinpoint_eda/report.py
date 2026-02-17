@@ -248,7 +248,10 @@ def _render_console_summary(
     guide.add_row("Import Jobs", "2", "External data pipeline may need redirecting")
     guide.add_row("Templates", "1 each, in-app=8", "In-app templates have no AWS equivalent")
     guide.add_row("Recommenders", "5 each", "Custom ML integrations")
-    guide.add_row("SMS/Voice V2", "2/phone, 2/pool, 3/reg", "Phone numbers, pools, registrations")
+    guide.add_row(
+        "SMS/Voice V2", "2/phone, 2/pool, 3/reg, 1/cfg",
+        "Phone numbers, pools, registrations, config sets",
+    )
 
     guide.add_section()
     guide.add_row("[green]LOW[/]", "0-9", "Minimal migration effort")
