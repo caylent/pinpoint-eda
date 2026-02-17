@@ -89,18 +89,25 @@ Account-level:
 
 ## Complexity Scoring
 
-| Resource | Points | Notes |
-|----------|--------|-------|
-| Journeys | 5 each | No direct Connect equivalent |
-| Active campaigns | 3 each | Careful cutover needed |
-| Segments | 1-4 each | Dynamic +3, imported +2 |
-| Active channels | 2 each | Per enabled channel |
-| Templates | 1 each | In-app = 8 each (no equivalent) |
-| Recommenders | 5 each | Custom ML integrations |
-| Event streams | 3 | If configured |
-| Push + campaigns | +5 | Not supported in Connect outbound |
+The tool assigns a heuristic complexity score to each Pinpoint application to help prioritize migration planning. Scores are **relative estimates**, not precise time predictions -- they indicate which applications will require more effort compared to others.
 
-**Levels:** LOW (0-10) | MEDIUM (10-30) | HIGH (30-70) | VERY HIGH (70+)
+| Resource | Points | How It's Calculated |
+|----------|--------|---------------------|
+| Journeys | varies | State (active=5, completed=3, draft=1) + activities + 2/branch + 3/integration |
+| Campaigns | 3/active, 1/other | Active campaigns need careful cutover |
+| Segments | 1 + 3/dynamic + 2/imported | Dynamic segments must be re-implemented in the target service |
+| Active channels | 2 each | Per enabled channel type (Email, SMS, Push, etc.) |
+| Push + campaigns | +5 | Push channels with active campaigns (no Connect outbound equivalent) |
+| Event streams | 3-5 | 5 if app has recent activity, 3 otherwise |
+| Campaign hooks | 5 | Lambda integration needs re-wiring |
+| Import jobs | 2 | External data pipeline may need redirecting |
+| Templates | 1 each, in-app=8 | In-app messaging templates have no AWS equivalent |
+| Recommenders | 5 each | Custom ML integrations via Amazon Personalize |
+| SMS/Voice V2 | 2/phone, 2/pool, 3/reg | Phone numbers, pools, and registrations |
+
+**Levels:** LOW (0-9) | MEDIUM (10-29) | HIGH (30-69) | VERY HIGH (70+)
+
+> **Important:** These scores are heuristic estimates to help prioritize migration planning. They are not a substitute for a detailed migration plan. Actual effort depends on your team's familiarity with the target AWS services (Amazon Connect, SES, SNS, etc.), the complexity of your business logic, and how tightly your applications are integrated with Pinpoint-specific features like journeys and in-app messaging. Use these scores as a starting point for conversation, not as a commitment.
 
 ## Features
 
@@ -287,11 +294,19 @@ pinpoint-eda scan \
   --role-arn arn:aws:iam::333333333333:role/PinpointEDAReadOnly
 ```
 
+## Limitations
+
+- **Read-only** -- this tool never creates, modifies, or deletes any AWS resources. It only reads resource metadata and metrics.
+- **Scores are heuristic** -- complexity scores are rough estimates based on resource counts and types. They do not account for custom business logic, downstream integrations outside of AWS, or organizational factors like team size and experience.
+- **No endpoint data** -- the tool does not scan individual endpoints (contacts/users). Endpoint counts can significantly affect migration timelines but are not included in the score.
+- **Point-in-time snapshot** -- the report reflects the state of your Pinpoint resources at scan time. Resources may change between scanning and migration.
+- **KPI data window** -- activity detection uses the `--kpi-days` window (default 90 days). An app with no recent activity may still have active downstream consumers.
+
 ## Development
 
 ```bash
 # Clone and install
-git clone <repo-url>
+git clone https://github.com/caylent/pinpoint-eda.git
 cd pinpoint-eda
 uv sync
 
