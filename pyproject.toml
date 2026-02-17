@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pinpoint-eda"
-version = "0.1.0"
+version = "0.0.1"
 description = "Migration assessment CLI for Amazon Pinpoint end-of-support"
 readme = "README.md"
 license = "MIT"
