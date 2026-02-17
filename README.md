@@ -4,6 +4,8 @@ Read-only migration complexity assessment for **Amazon Pinpoint** end-of-support
 
 Scans all Pinpoint resources across regions and accounts, scores migration complexity, and generates a report with migration target recommendations.
 
+![Pinpoint EDA scanning in progress](docs/images/scan-progress.png)
+
 ## Installation
 
 ```bash
