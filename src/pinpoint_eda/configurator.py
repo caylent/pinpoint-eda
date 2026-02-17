@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import configparser
 from pathlib import Path
 
 import questionary
@@ -55,6 +56,31 @@ def run_configurator() -> ScanConfig | None:
         return None
 
 
+def _discover_aws_profiles() -> list[str]:
+    """Discover AWS profiles from ~/.aws/config and ~/.aws/credentials."""
+    profiles: set[str] = set()
+
+    config_path = Path.home() / ".aws" / "config"
+    if config_path.exists():
+        parser = configparser.ConfigParser()
+        parser.read(config_path)
+        for section in parser.sections():
+            # Sections are "profile foo" or "default"
+            if section.startswith("profile "):
+                profiles.add(section.removeprefix("profile "))
+            elif section == "default":
+                profiles.add("default")
+
+    creds_path = Path.home() / ".aws" / "credentials"
+    if creds_path.exists():
+        parser = configparser.ConfigParser()
+        parser.read(creds_path)
+        for section in parser.sections():
+            profiles.add(section)
+
+    return sorted(profiles)
+
+
 def _configure_accounts() -> list[AccountConfig] | None:
     """Configure AWS account(s) to scan."""
     auth_method = questionary.select(
@@ -72,6 +98,23 @@ def _configure_accounts() -> list[AccountConfig] | None:
     accounts = []
 
     if auth_method == "profile":
+        discovered = _discover_aws_profiles()
+        if discovered:
+            choices = [
+                questionary.Choice(p, value=p)
+                for p in discovered
+            ]
+            selected = questionary.checkbox(
+                "Select AWS profile(s) to scan (space to select, enter to confirm):",
+                choices=choices,
+            ).ask()
+            if selected is None:
+                return None
+            if selected:
+                return [AccountConfig(profile=p) for p in selected]
+            # Empty selection -- fall through to manual entry
+
+        # No profiles found or empty selection -- manual entry
         while True:
             profile = questionary.text(
                 "AWS profile name:",
@@ -82,29 +125,54 @@ def _configure_accounts() -> list[AccountConfig] | None:
             accounts.append(AccountConfig(profile=profile))
 
             add_more = questionary.confirm(
-                "Add another account/profile?",
+                "Add another profile?",
                 default=False,
             ).ask()
             if not add_more:
                 break
 
     elif auth_method == "role":
-        role_arn = questionary.text(
-            "IAM Role ARN (arn:aws:iam::ACCOUNT:role/NAME):",
-            validate=lambda x: x.startswith("arn:aws:iam::") or "Must be a valid IAM role ARN",
-        ).ask()
-        if role_arn is None:
-            return None
+        # Offer a base profile for the role assumption
+        discovered = _discover_aws_profiles()
+        base_profile = None
+        if discovered:
+            use_profile = questionary.confirm(
+                "Use an AWS profile as the base session for role assumption?",
+                default=False,
+            ).ask()
+            if use_profile:
+                base_profile = questionary.select(
+                    "Base profile:",
+                    choices=discovered,
+                ).ask()
 
-        external_id = questionary.text(
-            "External ID (optional, press Enter to skip):",
-            default="",
-        ).ask()
+        while True:
+            role_arn = questionary.text(
+                "IAM Role ARN (arn:aws:iam::ACCOUNT:role/NAME):",
+                validate=lambda x: (
+                    x.startswith("arn:aws:iam:") or "Must be a valid IAM role ARN"
+                ),
+            ).ask()
+            if role_arn is None:
+                return None
 
-        accounts.append(AccountConfig(
-            role_arn=role_arn,
-            external_id=external_id or None,
-        ))
+            external_id = questionary.text(
+                "External ID (optional, press Enter to skip):",
+                default="",
+            ).ask()
+
+            accounts.append(AccountConfig(
+                profile=base_profile,
+                role_arn=role_arn,
+                external_id=external_id or None,
+            ))
+
+            add_more = questionary.confirm(
+                "Add another role?",
+                default=False,
+            ).ask()
+            if not add_more:
+                break
 
     else:
         accounts.append(AccountConfig())

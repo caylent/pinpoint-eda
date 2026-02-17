@@ -1,3 +1,3 @@
 """Pinpoint EDA - Migration Assessment CLI for Amazon Pinpoint."""
 
-__version__ = "0.0.2"
+__version__ = "0.0.3"
