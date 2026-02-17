@@ -34,7 +34,11 @@ def cli(ctx: click.Context) -> None:
 @cli.command()
 @click.option("--profile", "-p", multiple=True, help="AWS profile (repeatable).")
 @click.option("--region", "-r", multiple=True, help="AWS region (repeatable, skip auto-discover).")
-@click.option("--role-arn", default=None, help="IAM role ARN for cross-account access.")
+@click.option(
+    "--role-arn", multiple=True,
+    help="IAM role ARN for cross-account access (repeatable).",
+)
+@click.option("--external-id", default=None, help="External ID for role assumption.")
 @click.option("--app-id", "-a", multiple=True, help="Specific app ID(s) to scan (repeatable).")
 @click.option("--scanner", "-s", multiple=True, help="Specific scanner(s) to run (repeatable).")
 @click.option(
@@ -52,10 +56,12 @@ def cli(ctx: click.Context) -> None:
 @click.option("--json-only", is_flag=True, help="JSON output only (no Rich display).")
 @click.option("--verbose", "-v", is_flag=True, help="Enable debug logging.")
 @click.option("--no-sms-voice-v2", is_flag=True, help="Skip PinpointSMSVoiceV2 scanning.")
+@click.option("--dry-run", is_flag=True, help="Show what would be scanned without scanning.")
 def scan(
     profile: tuple[str, ...],
     region: tuple[str, ...],
-    role_arn: str | None,
+    role_arn: tuple[str, ...],
+    external_id: str | None,
     app_id: tuple[str, ...],
     scanner: tuple[str, ...],
     max_workers: int,
@@ -66,16 +72,10 @@ def scan(
     json_only: bool,
     verbose: bool,
     no_sms_voice_v2: bool,
+    dry_run: bool,
 ) -> None:
     """Run a Pinpoint migration assessment scan."""
-    accounts = []
-    if role_arn:
-        accounts.append(AccountConfig(role_arn=role_arn))
-    if profile:
-        for p in profile:
-            accounts.append(AccountConfig(profile=p))
-    if not accounts:
-        accounts.append(AccountConfig())
+    accounts = _build_accounts(profile, role_arn, external_id)
 
     config = ScanConfig(
         accounts=accounts,
@@ -90,8 +90,48 @@ def scan(
         json_only=json_only,
         verbose=verbose,
         no_sms_voice_v2=no_sms_voice_v2,
+        dry_run=dry_run,
     )
     _run_scan(config)
+
+
+def _build_accounts(
+    profiles: tuple[str, ...],
+    role_arns: tuple[str, ...],
+    external_id: str | None,
+) -> list[AccountConfig]:
+    """Build account configs from CLI flags.
+
+    Rules:
+    - Only profiles: each profile scans its own account directly.
+    - Only role-arns: each role is assumed using default credentials.
+    - One profile + role-arns: the profile is the base session for all assumptions.
+    - Multiple profiles + role-arns: error (ambiguous).
+    """
+    if profiles and role_arns:
+        if len(profiles) > 1:
+            raise click.UsageError(
+                "Cannot combine multiple --profile with --role-arn. "
+                "Use a single --profile as the base session for role assumption, "
+                "or configure profiles with role_arn in ~/.aws/config."
+            )
+        # Single profile is the base session for all role assumptions
+        base_profile = profiles[0]
+        return [
+            AccountConfig(profile=base_profile, role_arn=arn, external_id=external_id)
+            for arn in role_arns
+        ]
+
+    if role_arns:
+        return [
+            AccountConfig(role_arn=arn, external_id=external_id)
+            for arn in role_arns
+        ]
+
+    if profiles:
+        return [AccountConfig(profile=p) for p in profiles]
+
+    return [AccountConfig()]
 
 
 @cli.command("list-scanners")

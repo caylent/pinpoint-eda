@@ -8,6 +8,7 @@ import sys
 import time
 
 from rich.console import Console
+from rich.table import Table
 
 from pinpoint_eda.aws_session import AWSSessionManager
 from pinpoint_eda.checkpoint import CheckpointManager
@@ -51,6 +52,11 @@ class Orchestrator:
         self._scan_start = time.monotonic()
 
         try:
+            # Dry run: discover and display what would be scanned, then exit
+            if self.config.dry_run:
+                self._dry_run()
+                return
+
             # Initialize checkpoint
             self.checkpoint.initialize(resume=self.config.resume)
 
@@ -80,6 +86,70 @@ class Orchestrator:
             if self.progress:
                 self.progress.stop()
 
+    def _dry_run(self) -> None:
+        """Discover regions/apps and display what would be scanned, then exit."""
+        active_scanners = get_active_scanners(
+            selected=self.config.scanners or None,
+            no_sms_voice_v2=self.config.no_sms_voice_v2,
+        )
+
+        for account in self.config.accounts:
+            account_id = self.session_manager.resolve_account_id(account)
+            display_label = account_id
+            if account.label != "default":
+                display_label = f"{account_id} ({account.label})"
+
+            self.console.print(f"\n[bold]Account:[/] {display_label}")
+
+            if account.role_arn:
+                self.console.print(f"  [dim]Role:[/] {account.role_arn}")
+
+            regions_with_apps = self._discover_regions_lightweight(account)
+
+            if not regions_with_apps:
+                self.console.print("  [yellow]No Pinpoint apps found.[/]")
+                continue
+
+            total_apps = sum(len(apps) for apps in regions_with_apps.values())
+            self.console.print(
+                f"  [green]{len(regions_with_apps)} region(s), "
+                f"{total_apps} app(s) found[/]"
+            )
+
+            for region, app_ids in regions_with_apps.items():
+                self.console.print(f"\n  [cyan]{region}[/]: {len(app_ids)} app(s)")
+                client = self.session_manager.get_pinpoint_client(account, region)
+                for app_id in app_ids:
+                    app_name = app_id
+                    try:
+                        resp = self.rate_limiter.call_with_retry(
+                            client.get_app, ApplicationId=app_id
+                        )
+                        app_name = resp.get(
+                            "ApplicationResponse", {}
+                        ).get("Name", app_id)
+                    except Exception:
+                        pass
+                    self.console.print(f"    - {app_name} [dim]({app_id})[/]")
+
+        # Show scanners that would run
+        self.console.print()
+        scanner_table = Table(title="Scanners to Run", show_header=True)
+        scanner_table.add_column("Scanner", style="cyan")
+        scanner_table.add_column("Description")
+        scanner_table.add_column("Scope", style="green")
+
+        for name in active_scanners:
+            meta = SCANNER_REGISTRY[name]
+            scope = "per-app" if meta.per_app else "account-level"
+            scanner_table.add_row(name, meta.description, scope)
+
+        self.console.print(scanner_table)
+        self.console.print(
+            "\n[dim]This was a dry run. "
+            "Remove --dry-run to execute the scan.[/]"
+        )
+
     def _scan_account(self, account: AccountConfig) -> None:
         """Scan all regions for a single account."""
         # Resolve real AWS account ID via STS
@@ -105,6 +175,28 @@ class Orchestrator:
             if self.executor.should_stop:
                 break
             self._scan_region(account, region, app_ids)
+
+    def _discover_regions_lightweight(
+        self, account: AccountConfig
+    ) -> dict[str, list[str]]:
+        """Discover regions without checkpoint writes (for dry-run)."""
+        if self.config.regions:
+            regions_with_apps: dict[str, list[str]] = {}
+            for region in self.config.regions:
+                try:
+                    client = self.session_manager.get_pinpoint_client(account, region)
+                    response = client.get_apps(PageSize="100")
+                    apps = response.get("ApplicationsResponse", {}).get("Item", [])
+                    app_ids = [a["Id"] for a in apps]
+                    if self.config.app_ids:
+                        app_ids = [a for a in app_ids if a in self.config.app_ids]
+                    if app_ids:
+                        regions_with_apps[region] = app_ids
+                except Exception as e:
+                    logger.warning("Failed to probe %s: %s", region, e)
+            return regions_with_apps
+
+        return discover_regions(self.session_manager, account, progress=None)
 
     def _discover_regions(self, account: AccountConfig) -> dict[str, list[str]]:
         """Discover regions with Pinpoint apps, respecting checkpoint and --region."""

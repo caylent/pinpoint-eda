@@ -43,6 +43,7 @@ class ScanConfig(BaseModel):
     json_only: bool = False
     verbose: bool = False
     no_sms_voice_v2: bool = False
+    dry_run: bool = False
 
     def config_hash(self) -> str:
         """Deterministic hash of config for checkpoint matching."""

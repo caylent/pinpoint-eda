@@ -26,11 +26,17 @@ pinpoint-eda scan --profile my-profile
 # Specific region
 pinpoint-eda scan --profile my-profile --region us-east-1
 
-# Multi-account
+# Multi-account (each profile is scanned separately)
 pinpoint-eda scan --profile prod --profile staging
 
 # Cross-account role assumption
 pinpoint-eda scan --role-arn arn:aws:iam::123456789012:role/PinpointReadOnly
+
+# Role assumption using a specific profile as the base session
+pinpoint-eda scan --profile hub --role-arn arn:aws:iam::123456789012:role/PinpointReadOnly
+
+# Dry run (discover apps without scanning)
+pinpoint-eda scan --profile my-profile --dry-run
 ```
 
 ## Commands
@@ -48,7 +54,8 @@ pinpoint-eda scan --role-arn arn:aws:iam::123456789012:role/PinpointReadOnly
 |------|---------|-------------|
 | `--profile` / `-p` | env/default | AWS profile (repeatable) |
 | `--region` / `-r` | auto-discover | AWS region (repeatable) |
-| `--role-arn` | none | IAM role for cross-account |
+| `--role-arn` | none | IAM role ARN for cross-account (repeatable) |
+| `--external-id` | none | External ID for role assumption |
 | `--app-id` / `-a` | all | Specific app IDs (repeatable) |
 | `--scanner` / `-s` | all | Specific scanners (repeatable) |
 | `--max-workers` / `-w` | 5 | Parallel threads |
@@ -59,6 +66,7 @@ pinpoint-eda scan --role-arn arn:aws:iam::123456789012:role/PinpointReadOnly
 | `--json-only` | false | No Rich output (for CI) |
 | `--verbose` / `-v` | false | Debug logging |
 | `--no-sms-voice-v2` | false | Skip SMS Voice V2 |
+| `--dry-run` | false | Show what would be scanned without scanning |
 
 ## What It Scans
 
@@ -243,7 +251,7 @@ The IAM identity running pinpoint-eda in the source account needs permission to 
 #### 3. Run the scan
 
 ```bash
-# Single cross-account target
+# Single cross-account target (assumes role using default credentials)
 pinpoint-eda scan --role-arn arn:aws:iam::222222222222:role/PinpointEDAReadOnly
 
 # With an external ID
@@ -251,9 +259,14 @@ pinpoint-eda scan \
   --role-arn arn:aws:iam::222222222222:role/PinpointEDAReadOnly \
   --external-id pinpoint-eda
 
-# Multiple accounts at once
+# Use a specific profile as the base session for role assumption
 pinpoint-eda scan \
-  --profile local-account \
+  --profile hub-account \
+  --role-arn arn:aws:iam::222222222222:role/PinpointEDAReadOnly
+
+# Multiple cross-account targets via one base profile
+pinpoint-eda scan \
+  --profile hub-account \
   --role-arn arn:aws:iam::222222222222:role/PinpointEDAReadOnly \
   --role-arn arn:aws:iam::333333333333:role/PinpointEDAReadOnly
 ```
