@@ -1,0 +1,59 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pinpoint-eda"
+version = "0.1.0"
+description = "Migration assessment CLI for Amazon Pinpoint end-of-support"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+authors = [
+    { name = "Caylent", email = "info@caylent.com" },
+]
+keywords = ["aws", "pinpoint", "migration", "assessment"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: System :: Systems Administration",
+]
+dependencies = [
+    "boto3>=1.34",
+    "click>=8.1",
+    "pydantic>=2.5",
+    "questionary>=2.0",
+    "rich>=13.7",
+]
+
+[project.scripts]
+pinpoint-eda = "pinpoint_eda.cli:cli"
+
+[project.urls]
+Homepage = "https://github.com/caylent/pinpoint-eda"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pinpoint_eda"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-mock>=3.12",
+    "ruff>=0.5",
+]

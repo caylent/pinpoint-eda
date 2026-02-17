@@ -1,0 +1,64 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "PinpointEDASTSIdentity",
+      "Effect": "Allow",
+      "Action": "sts:GetCallerIdentity",
+      "Resource": "*"
+    },
+    {
+      "Sid": "PinpointEDAReadOnly",
+      "Effect": "Allow",
+      "Action": [
+        "mobiletargeting:GetApp",
+        "mobiletargeting:GetApps",
+        "mobiletargeting:GetApplicationSettings",
+        "mobiletargeting:GetApplicationDateRangeKpi",
+        "mobiletargeting:GetSegments",
+        "mobiletargeting:GetSegmentVersions",
+        "mobiletargeting:GetCampaigns",
+        "mobiletargeting:GetCampaignVersions",
+        "mobiletargeting:ListJourneys",
+        "mobiletargeting:GetJourney",
+        "mobiletargeting:GetJourneyExecutionMetrics",
+        "mobiletargeting:GetEmailChannel",
+        "mobiletargeting:GetSmsChannel",
+        "mobiletargeting:GetVoiceChannel",
+        "mobiletargeting:GetApnsChannel",
+        "mobiletargeting:GetApnsSandboxChannel",
+        "mobiletargeting:GetApnsVoipChannel",
+        "mobiletargeting:GetApnsVoipSandboxChannel",
+        "mobiletargeting:GetGcmChannel",
+        "mobiletargeting:GetBaiduChannel",
+        "mobiletargeting:GetAdmChannel",
+        "mobiletargeting:ListTemplates",
+        "mobiletargeting:GetEmailTemplate",
+        "mobiletargeting:GetSmsTemplate",
+        "mobiletargeting:GetPushTemplate",
+        "mobiletargeting:GetInAppTemplate",
+        "mobiletargeting:GetVoiceTemplate",
+        "mobiletargeting:GetEventStream",
+        "mobiletargeting:GetImportJobs",
+        "mobiletargeting:GetExportJobs",
+        "mobiletargeting:GetRecommenderConfigurations",
+        "mobiletargeting:ListTagsForResource"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "PinpointEDASMSVoiceV2ReadOnly",
+      "Effect": "Allow",
+      "Action": [
+        "sms-voice:DescribePhoneNumbers",
+        "sms-voice:DescribePools",
+        "sms-voice:DescribeSenderIds",
+        "sms-voice:DescribeOptOutLists",
+        "sms-voice:DescribeRegistrations",
+        "sms-voice:DescribeConfigurationSets",
+        "sms-voice:DescribeKeywords"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
