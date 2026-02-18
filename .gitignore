@@ -18,3 +18,5 @@ pinpoint-eda-output/
 test-output/
 .pinpoint-eda-checkpoint.json
 .pinpoint-eda-checkpoint.tmp
+docs/images/*.gif
+docs/images/*.mp4
