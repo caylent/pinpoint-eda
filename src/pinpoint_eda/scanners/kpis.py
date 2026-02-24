@@ -20,6 +20,49 @@ APP_KPI_NAMES = [
 ]
 
 
+def _extract_value(row: dict) -> float | None:
+    """Extract numeric value from a KPI row."""
+    # Pinpoint KPI rows have Values list with Type/Value pairs
+    values = row.get("Values", [])
+    for v in values:
+        if v.get("Type") == "Double":
+            return float(v.get("Value", 0))
+        if v.get("Type") == "Long":
+            return int(v.get("Value", 0))
+    # Fallback: check for direct Value field
+    if "Value" in row:
+        try:
+            return float(row["Value"])
+        except (TypeError, ValueError):
+            pass
+    return None
+
+
+def _sum_kpi_rows(kpi_data: dict) -> int:
+    """Sum all values from KPI rows."""
+    total = 0
+    for row in kpi_data.get("rows", []):
+        val = _extract_value(row)
+        if val is not None:
+            total += int(val)
+    return total
+
+
+def _avg_kpi_rows(kpi_data: dict) -> float | None:
+    """Average all values from KPI rows (for rates)."""
+    rows = kpi_data.get("rows", [])
+    if not rows:
+        return None
+    values = []
+    for row in rows:
+        val = _extract_value(row)
+        if val is not None:
+            values.append(val)
+    if not values:
+        return None
+    return round(sum(values) / len(values), 2)
+
+
 class KPIsScanner(BaseScanner):
     name = "kpis"
     description = "Application, campaign, and journey KPIs"
@@ -78,7 +121,7 @@ class KPIsScanner(BaseScanner):
             len(v) for v in kpi_data.values() if isinstance(v, dict)
         )
 
-        # Determine if app has recent activity
+        # Determine if app has recent activity and sum up metrics
         has_deliveries = False
         delivery_data = kpi_data["application"].get(
             "unique-deliveries-grouped-by-date", {}
@@ -97,6 +140,28 @@ class KPIsScanner(BaseScanner):
             .get("rows")
         )
 
+        # Aggregate KPI values
+        metrics = {
+            "unique_deliveries": _sum_kpi_rows(
+                kpi_data["application"].get("unique-deliveries-grouped-by-date", {})
+            ),
+            "successful_delivery_rate": _avg_kpi_rows(
+                kpi_data["application"].get("successful-delivery-rate-grouped-by-date", {})
+            ),
+            "sms_delivered": _sum_kpi_rows(
+                kpi_data["application"].get("txn-sms-delivered-grouped-by-date", {})
+            ),
+            "sms_sent": _sum_kpi_rows(
+                kpi_data["application"].get("txn-sms-sent-grouped-by-date", {})
+            ),
+            "emails_delivered": _sum_kpi_rows(
+                kpi_data["application"].get("txn-emails-delivered-grouped-by-date", {})
+            ),
+            "emails_sent": _sum_kpi_rows(
+                kpi_data["application"].get("txn-emails-sent-grouped-by-date", {})
+            ),
+        }
+
         result.metadata = {
             "kpi_days": self.kpi_days,
             "app_kpis_collected": len(kpi_data["application"]),
@@ -104,6 +169,7 @@ class KPIsScanner(BaseScanner):
             "has_recent_sms": has_sms,
             "has_recent_email": has_email,
             "is_active": has_deliveries or has_sms or has_email,
+            "metrics": metrics,
         }
 
         return result
